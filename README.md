@@ -8,6 +8,8 @@ Reverse client-server duplex communication via polling + WCF in C#
 </ul>
 
 <h3><b>How to use?</b></h3>
+
+<h4><b>Server side setup</b></h4>
 Modify the public enum ClientOperations (list of operations that will be availible to be pushed to the client) on the server-side.
 For this example, we will consider the requirements for making a program that will serve as a remote file explorer (from server->client).
 
@@ -78,10 +80,71 @@ Now the request will be sent to the client on the next poll cycle (handled clien
 				pathToRead + "callback"
 			);
 			ClientDatastore.addListener(client, pathToRead + "callback", (client, obj)=>{
-				File.WriteAllBytes("outputFile.bin",obj);
+				File.WriteAllBytes("outputFile.bin",(byte[])obj);
 				Console.WriteLine("Wrote file received from "+client.username+" to outputFile.bin");
 			});
 		});
 		Console.ReadKey();
 	}
 ```
+
+The whole system works around the listener + datastore system, where the cycle is as follows.
+<ul>
+<li>Create listener in ClientDatastore</li>
+<li>Queue operation in OperationQueue</li>
+<li>Operation completes, return data stored in ClientDatastore</li>
+<li>Listener called and return data is used.</li>
+</ul>
+So, for the code shown before, the cycle would be as follows.
+<ul>
+<li>Create listener in ClientDatastore, set to callback on key (path + "callback")</li>
+<li>Queue readFile operation for client in operationQueue</li>
+<li>Client side operation finishes reading file, bytes sent back and stored in the entry (path + "callback")</li>
+<li>Listener is alerted of data entry and listener is called with the data returned</li>
+<li>Listener function writes bytes to outputFile.bin</li>
+This system can be manipulated in many ways to allow for complex duplex communications.
+
+<h4><b>Client side setup</b></h4>
+
+Now that the server-side is completely set up, the client-side system needs a way to process and respond to data being sent to it. This has two, Client Creation and Polling.
+
+Client Creation is how you will define seperate clients. This mainly serves to give basic information (username, IP, etc.) about the client simply. Each client needs to be unique, however, so there must be some way to differentiate between every client to make sure that no client objects are interpreted as "equal" when they are infact two seperate clients. This will lead to data being sent to the incorrect client and mismatched operation queues.
+
+For this example, we can use a simple Client class definition, which contains an entry for MAC Address (to ensure uniqueness between clients), hostname, and active username. This will ensure that every client connecting from seperate machines will have unique sessions dedicated to them.
+
+```
+	public Client buildClient()
+        {
+            Client client = new Client();
+            String addr = (
+                from nic in NetworkInterface.GetAllNetworkInterfaces()
+                where nic.OperationalStatus == OperationalStatus.Up
+                select nic.GetPhysicalAddress().ToString()
+            ).FirstOrDefault();
+            client.hostname = Environment.MachineName;
+            client.username = Environment.UserName;
+            return client;
+        }
+```
+
+Now that the Client Creation stage is finished, a polling system must be setup. Using WCF, the polling process is actually quite simple. The DataTransfer object used below is what is packaged server-side and sent to the client. This object consists of a ClientOperation, a hasData flag, a dataName, and a data object (List<byte[]>). This allows the server to send data to the client for processing. The dataName is simply where the data object (if present, which is checkable using the hasData flag) will be stored when it is sent back to the server in the ClientDatastore. This value is important for making sure the server-side listeners are triggered when the data is sent back. Since data stored in the data object MUST be a byte[], the readFile path sent from the server earlier encoding the path string as bytes. These bytes are stored in the first entry of the obj.data list, and are decoded using the Encoding.ASCII.GetString() function.
+
+```
+        using (ServiceClient proxy = new ServiceClient())
+        {
+        	while (true)
+        	{
+        		Thread.Sleep(50); //polling frequency
+        		DataTransfer ret = proxy.getWork(client);
+        		ClientOperations operation = ret.operation;
+                if (operation == ClientOperations.readFile)
+                {
+                    proxy.sendWork(client, ret.dataName, File.ReadAllBytes(Encoding.ASCII.GetString(obj.data[0]));
+                }
+            }
+        }
+```
+
+Adding extra functions is as easy as adding entries to the ClientOperations enum and implementing the client-side work in the polling loop.
+
+
