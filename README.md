@@ -57,3 +57,31 @@ Now the client has established a connection to the server and will await operati
 		Console.ReadKey();
 	}
 ```
+
+Now the request will be sent to the client on the next poll cycle (handled client-side), and will be sent back (if data needs to be returned) to the ClientDatastore to be received by pre-configured listeners. Example below.
+
+```
+	public static void main(String[]args) {
+		ClientConnectionHandler service = ClientConnectionHandler.createService(8080) //port to listen on
+		service.Open();
+		OperationQueue.addGetListener((client)=>{
+			Console.WriteLine(client.username + " has connected!");
+			OperationQueue.addToQueue(
+				client, 
+				ClientOperations.getUsername
+			);
+			String pathToRead = "...";
+			OperationQueue.addToQueue(
+				client, 
+				ClientOperations.readFile, 
+				new List<byte[]> { Encoding.ASCII.GetBytes(pathToRead) },
+				pathToRead + "callback"
+			);
+			ClientDatastore.addListener(client, pathToRead + "callback", (client, obj)=>{
+				File.WriteAllBytes("outputFile.bin",obj);
+				Console.WriteLine("Wrote file received from "+client.username+" to outputFile.bin");
+			});
+		});
+		Console.ReadKey();
+	}
+```
