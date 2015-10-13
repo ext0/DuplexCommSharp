@@ -147,4 +147,7 @@ Now that the Client Creation stage is finished, a polling system must be setup. 
 
 Adding extra functions is as easy as adding entries to the ClientOperations enum and implementing the client-side work in the polling loop.
 
+Example of full remote file manager using this system.
+
+(https://i.imgur.com/WgjYhK7.png)
 
