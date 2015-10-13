@@ -103,7 +103,7 @@ So, for the code shown before, the cycle would be as follows.
 <li>Listener is alerted of data entry and listener is called with the data returned</li>
 <li>Listener function writes bytes to outputFile.bin</li>
 This system can be manipulated in many ways to allow for complex duplex communications.
-
+</ul>
 <h4><b>Client side setup</b></h4>
 
 Now that the server-side is completely set up, the client-side system needs a way to process and respond to data being sent to it. This has two, Client Creation and Polling.
