@@ -149,5 +149,5 @@ Adding extra functions is as easy as adding entries to the ClientOperations enum
 
 Example of full remote file manager using this system.
 
-(https://i.imgur.com/WgjYhK7.png)
+![Screenshot](https://i.imgur.com/WgjYhK7.png)
 
